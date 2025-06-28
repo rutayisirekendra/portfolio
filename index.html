@@ -1292,93 +1292,92 @@
         }
 
         // CV Upload Management
-        function initializeCVUpload() {
-            const cvUpload = document.getElementById('cvUpload');
-            const cvButton = document.getElementById('cvButton');
+       // CV Upload Management with Persistence
+function initializeCVUpload() {
+    const cvUpload = document.getElementById('cvUpload');
+    const cvButton = document.getElementById('cvButton');
 
-            cvUpload.addEventListener('change', handleCVUpload);
-            cvButton.addEventListener('click', () => {
-                if (uploadedCV) {
-                    showCVOptions();
-                } else {
-                    cvUpload.click();
-                }
-            });
+    // Load saved CV on page load
+    loadSavedCV();
+
+    cvUpload.addEventListener('change', handleCVUpload);
+    cvButton.addEventListener('click', () => {
+        if (uploadedCV) {
+            downloadCV();
+        } else {
+            cvUpload.click();
+        }
+    });
+}
+
+function handleCVUpload(event) {
+    const file = event.target.files[0];
+    if (file) {
+        const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+        if (!allowedTypes.includes(file.type)) {
+            showNotification('Please upload a PDF or Word document', 'error');
+            return;
         }
 
-        function handleCVUpload(event) {
-            const file = event.target.files[0];
-            if (file) {
-                const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
-                if (!allowedTypes.includes(file.type)) {
-                    showNotification('Please upload a PDF or Word document', 'error');
-                    return;
-                }
+        if (file.size > 5 * 1024 * 1024) {
+            showNotification('File size must be less than 5MB', 'error');
+            return;
+        }
 
-                if (file.size > 5 * 1024 * 1024) {
-                    showNotification('File size must be less than 5MB', 'error');
-                    return;
-                }
-
+        // Convert file to base64 and save to localStorage
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const cvData = {
+                name: file.name,
+                size: file.size,
+                type: file.type,
+                data: e.target.result, // This is the base64 data
+                uploadDate: new Date().toISOString()
+            };
+            
+            try {
+                localStorage.setItem('portfolioCV', JSON.stringify(cvData));
                 uploadedCV = file;
                 updateCVButton();
                 showCVSection();
-                showNotification('CV uploaded successfully!');
+                showNotification('CV uploaded and saved successfully!');
+            } catch (error) {
+                showNotification('CV too large for browser storage. Please use a smaller file.', 'error');
             }
+        };
+        reader.readAsDataURL(file); // This converts file to base64
+    }
+}
+
+function loadSavedCV() {
+    try {
+        const savedCV = localStorage.getItem('portfolioCV');
+        if (savedCV) {
+            const cvData = JSON.parse(savedCV);
+            
+            // Convert base64 back to file
+            fetch(cvData.data)
+                .then(res => res.blob())
+                .then(blob => {
+                    const file = new File([blob], cvData.name, { type: cvData.type });
+                    uploadedCV = file;
+                    updateCVButton();
+                    showCVSection();
+                });
         }
+    } catch (error) {
+        console.log('No saved CV found or error loading CV');
+    }
+}
 
-        function updateCVButton() {
-            const cvButton = document.getElementById('cvButton');
-            if (uploadedCV) {
-                cvButton.innerHTML = '<i class="fas fa-eye"></i><span>View CV</span>';
-                cvButton.className = 'btn btn-primary';
-            } else {
-                cvButton.innerHTML = '<i class="fas fa-upload"></i><span>Upload CV</span>';
-                cvButton.className = 'btn btn-secondary';
-            }
-        }
-
-        function showCVSection() {
-            const cvSection = document.getElementById('cvSection');
-            const cvFileName = document.getElementById('cvFileName');
-            const cvFileSize = document.getElementById('cvFileSize');
-
-            cvFileName.textContent = uploadedCV.name;
-            cvFileSize.textContent = `(${(uploadedCV.size / 1024 / 1024).toFixed(2)} MB)`;
-            cvSection.style.display = 'block';
-
-            document.getElementById('viewCvBtn').addEventListener('click', viewCV);
-            document.getElementById('downloadCvBtn').addEventListener('click', downloadCV);
-        }
-
-        function viewCV() {
-            if (uploadedCV) {
-                const url = URL.createObjectURL(uploadedCV);
-                window.open(url, '_blank');
-            }
-        }
-
-        function downloadCV() {
-            if (uploadedCV) {
-                const url = URL.createObjectURL(uploadedCV);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = uploadedCV.name;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                URL.revokeObjectURL(url);
-            }
-        }
-
-        function showCVOptions() {
-            const options = confirm('Choose an option:\nOK - View CV\nCancel - Download CV');
-            if (options) {
-                viewCV();
-            } else {
-                downloadCV();
-            }
-        }
+// Optional: Function to clear saved CV
+function clearSavedCV() {
+    localStorage.removeItem('portfolioCV');
+    uploadedCV = null;
+    updateCVButton();
+    document.getElementById('cvSection').style.display = 'none';
+    showNotification('CV removed successfully!');
+}
 
         // Contact Form
         function initializeContactForm() {
